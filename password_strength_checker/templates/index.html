@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Password Strength Checker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="checker-box">
+            <h1>Password Strength Checker</h1>
+            <p class="subtitle">Check the strength of your password in real-time</p>
+            
+            <div class="input-group">
+                <label for="password">Enter Password:</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    placeholder="Type your password here..."
+                    autocomplete="off"
+                >
+                <button id="togglePassword" class="toggle-btn">👁️</button>
+            </div>
+
+            <div class="strength-meter">
+                <div class="strength-bar" id="strengthBar"></div>
+            </div>
+
+            <div class="strength-result" id="strengthResult">
+                <span id="strengthText">Enter a password</span>
+                <span id="strengthScore" class="score-badge"></span>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Length:</span>
+                    <span class="stat-value" id="lengthValue">0</span>
+                </div>
+            </div>
+
+            <div class="feedback" id="feedback">
+                <p class="feedback-label">Tips:</p>
+                <ul id="feedbackList"></ul>
+            </div>
+
+            <div class="requirements">
+                <h3>Password Requirements:</h3>
+                <div class="requirement">
+                    <span class="req-icon" id="reqLength">○</span>
+                    <span>At least 8 characters</span>
+                </div>
+                <div class="requirement">
+                    <span class="req-icon" id="reqLower">○</span>
+                    <span>Lowercase letters (a-z)</span>
+                </div>
+                <div class="requirement">
+                    <span class="req-icon" id="reqUpper">○</span>
+                    <span>Uppercase letters (A-Z)</span>
+                </div>
+                <div class="requirement">
+                    <span class="req-icon" id="reqNumber">○</span>
+                    <span>Numbers (0-9)</span>
+                </div>
+                <div class="requirement">
+                    <span class="req-icon" id="reqSpecial">○</span>
+                    <span>Special characters (!@#$%^&*)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const passwordInput = document.getElementById('password');
+        const toggleBtn = document.getElementById('togglePassword');
+        const strengthBar = document.getElementById('strengthBar');
+        const strengthText = document.getElementById('strengthText');
+        const strengthScore = document.getElementById('strengthScore');
+        const lengthValue = document.getElementById('lengthValue');
+        const feedbackList = document.getElementById('feedbackList');
+
+        // Toggle password visibility
+        toggleBtn.addEventListener('click', () => {
+            const type = passwordInput.type === 'password' ? 'text' : 'password';
+            passwordInput.type = type;
+            toggleBtn.textContent = type === 'password' ? '👁️' : '🙈';
+        });
+
+        // Check password on input
+        passwordInput.addEventListener('input', async () => {
+            const password = passwordInput.value;
+            lengthValue.textContent = password.length;
+
+            if (password.length === 0) {
+                strengthBar.className = 'strength-bar empty';
+                strengthText.textContent = 'Enter a password';
+                strengthScore.textContent = '';
+                feedbackList.innerHTML = '';
+                resetRequirements();
+                return;
+            }
+
+            // Send request to backend
+            const response = await fetch('/check', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ password: password })
+            });
+
+            const result = await response.json();
+            updateUI(result, password);
+        });
+
+        function updateUI(result, password) {
+            // Update strength bar
+            const strengthClass = result.strength;
+            strengthBar.className = `strength-bar ${strengthClass}`;
+            
+            // Update strength text
+            strengthText.textContent = `Strength: ${result.strength.toUpperCase()}`;
+            
+            // Update score badge
+            const scores = { weak: 1, mid: 2, average: 3, strong: 4, 'very strong': 5 };
+            strengthScore.textContent = `${scores[result.strength]}/5`;
+
+            // Update feedback
+            feedbackList.innerHTML = result.feedback
+                .map(item => `<li>✓ ${item}</li>`)
+                .join('');
+
+            // Update requirements checklist
+            updateRequirements(password);
+        }
+
+        function updateRequirements(password) {
+            document.getElementById('reqLength').textContent = password.length >= 8 ? '✓' : '○';
+            document.getElementById('reqLower').textContent = /[a-z]/.test(password) ? '✓' : '○';
+            document.getElementById('reqUpper').textContent = /[A-Z]/.test(password) ? '✓' : '○';
+            document.getElementById('reqNumber').textContent = /[0-9]/.test(password) ? '✓' : '○';
+            document.getElementById('reqSpecial').textContent = /[!@#$%^&*()_+\-=\[\]{};:'"",.<>?/\\|`~]/.test(password) ? '✓' : '○';
+        }
+
+        function resetRequirements() {
+            ['reqLength', 'reqLower', 'reqUpper', 'reqNumber', 'reqSpecial'].forEach(id => {
+                document.getElementById(id).textContent = '○';
+            });
+        }
+    </script>
+</body>
+</html>
